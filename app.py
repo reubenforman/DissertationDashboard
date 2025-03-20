@@ -289,7 +289,9 @@ if predict_button:
                 'total_stay_nights': 'Total Nights Stayed',
                 'market_segment': 'Market Segment',
                 'distribution_channel': 'Distribution Channel',
-                'country_of_origin': 'Country Origin',  # Changed mapping for country_of_origin
+                'portugal': 'Portugal',
+                'european': 'European',
+                'rest_of_the_world': 'Rest of the World',
                 'deposit_type': 'Deposit Type',
                 'customer_type': 'Customer Type',
                 'is_repeated_guest': 'Is Repeated Guest',
@@ -321,7 +323,7 @@ if predict_button:
             # Convert binary columns to boolean for better display
             for col in binary_columns:
                 if col in display_data.columns:
-                    display_data[col] = display_data[col].replace({0: False, 1: True})
+                    display_data[col] = display_data[col].replace({0: False, 1: True}, inplace=True)
             
             # Rename columns using the feature name map
             display_data.rename(columns=feature_name_map, inplace=True)
@@ -341,19 +343,10 @@ if predict_button:
                     parts = without_prefix.rsplit('_', 1)
                     if len(parts) > 1:
                         orig = parts[0]
-                        
-                        # Special mapping for country_of_origin as requested
-                        if orig == 'country_of_origin':
-                            if parts[1] == 'Portugal':
-                                feature_mapping[col] = "Portugal"
-                            elif parts[1] == 'European':
-                                feature_mapping[col] = "European"
-                            elif parts[1] == 'Rest of the world':
-                                feature_mapping[col] = "Rest of the World"
-                        else:
-                            # Map to human-readable name and include the category value
-                            readable_name = feature_name_map.get(orig, orig)
-                            feature_mapping[col] = f"{readable_name}: {parts[1]}"
+        
+                        # Map to human-readable name and include the category value
+                        readable_name = feature_name_map.get(orig, orig)
+                        feature_mapping[col] = f"{readable_name}: {parts[1]}"
                     else:
                         feature_mapping[col] = feature_name_map.get(without_prefix, without_prefix)
                 else:
