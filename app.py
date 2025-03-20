@@ -460,8 +460,8 @@ if predict_button:
             )[:10]  # Top 10 features
             
             # Create the waterfall plot
-            fig, ax = plt.subplots(figsize=(8, 5))  # Reduced figure size
-            plt.style.use('seaborn-v0_8-whitegrid')
+            fig, ax = plt.subplots(figsize=(6, 4))  # Reduced figure size
+            plt.style.use('seaborn-v0_8')
             
             # Prepare features and values for the plot
             features = [x[0] for x in sorted_features]
