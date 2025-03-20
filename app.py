@@ -460,22 +460,27 @@ if predict_button:
             )[:10]  # Top 10 features
             
             # Create the waterfall plot
-            fig, ax = plt.subplots(figsize=(6, 4))  # Reduced figure size
-            plt.style.use('seaborn-v0_8')
+            # fig, ax = plt.subplots(figsize=(6, 4))  # Reduced figure size
+            plt.style.use('default')
             
             # Prepare features and values for the plot
             features = [x[0] for x in sorted_features]
             values = [x[1] for x in sorted_features]
             
             # SHAP waterfall plot
-            shap.plots._waterfall.waterfall_legacy(
+            fig = shap.plots._waterfall.waterfall_legacy(
                 expected_value, 
                 np.array(values), 
                 feature_names=features,
                 max_display=10,
                 show=False
             )
-            
+            # Explicitly set the figure size
+            fig.set_size_inches(6, 4)
+
+            # Turn off the grid for all axes in the figure
+            for ax in fig.axes:
+                ax.grid(False) 
             # Improve plot appearance
             plt.title('Top Factors Affecting Cancellation Probability', fontsize=14)
             plt.tight_layout()
