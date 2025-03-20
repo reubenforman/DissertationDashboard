@@ -289,7 +289,7 @@ if predict_button:
                 'total_stay_nights': 'Total Nights Stayed',
                 'market_segment': 'Market Segment',
                 'distribution_channel': 'Distribution Channel',
-                'country_of_origin': 'Country of Origin',
+                'country_of_origin': 'Country Origin',  # Changed mapping for country_of_origin
                 'deposit_type': 'Deposit Type',
                 'customer_type': 'Customer Type',
                 'is_repeated_guest': 'Is Repeated Guest',
@@ -308,6 +308,24 @@ if predict_button:
                 'previous_bookings_not_canceled': 'Previous Bookings Not Canceled'
             }
             
+            # Define binary columns to convert to boolean
+            binary_columns = [
+                'is_repeated_guest', 'required_car_spaces_indicator', 'is_family',
+                'cancellation_risk', 'special_request_indicator', 'waiting_list_indicator',
+                'booking_changes_indicator', 'room_status', 'previous_bookings_not_canceled'
+            ]
+            
+            # Create a copy of the transformed data for display purposes
+            display_data = transformed_data.copy()
+            
+            # Convert binary columns to boolean for better display
+            for col in binary_columns:
+                if col in display_data.columns:
+                    display_data[col] = display_data[col].replace({0: False, 1: True})
+            
+            # Rename columns using the feature name map
+            display_data.rename(columns=feature_name_map, inplace=True)
+            
             # Get the encoded feature names from the preprocessing pipeline
             encoded_feature_names = preprocessing_pipeline.get_feature_names_out()
             
@@ -323,9 +341,19 @@ if predict_button:
                     parts = without_prefix.rsplit('_', 1)
                     if len(parts) > 1:
                         orig = parts[0]
-                        # Map to human-readable name and include the category value
-                        readable_name = feature_name_map.get(orig, orig)
-                        feature_mapping[col] = f"{readable_name}: {parts[1]}"
+                        
+                        # Special mapping for country_of_origin as requested
+                        if orig == 'country_of_origin':
+                            if parts[1] == 'Portugal':
+                                feature_mapping[col] = "Portugal"
+                            elif parts[1] == 'European':
+                                feature_mapping[col] = "European"
+                            elif parts[1] == 'Rest of the world':
+                                feature_mapping[col] = "Rest of the World"
+                        else:
+                            # Map to human-readable name and include the category value
+                            readable_name = feature_name_map.get(orig, orig)
+                            feature_mapping[col] = f"{readable_name}: {parts[1]}"
                     else:
                         feature_mapping[col] = feature_name_map.get(without_prefix, without_prefix)
                 else:
@@ -395,6 +423,10 @@ if predict_button:
             )
             
             st.pyplot(fig)
+            
+            # Display the processed input data with readable feature names and boolean conversions
+            st.subheader("Input Data Summary")
+            st.dataframe(display_data)
             
             st.info("""
             The waterfall plot shows how each feature contributes to pushing the model prediction 
