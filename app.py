@@ -303,7 +303,8 @@ if predict_button:
             binary_columns = [
                 'is_repeated_guest', 'required_car_spaces_indicator', 'is_family',
                 'cancellation_risk', 'special_request_indicator', 'waiting_list_indicator',
-                'booking_changes_indicator', 'room_status', 'previous_bookings_not_canceled'
+                'booking_changes_indicator', 'room_status', 'previous_bookings_not_canceled',
+                'portugal', 'european', 'rest_of_the_world'  # Add country binary columns
             ]
             
             # Create a copy of the transformed data for display purposes
@@ -312,7 +313,7 @@ if predict_button:
             # Convert binary columns to boolean for better display
             for col in binary_columns:
                 if col in display_data.columns:
-                    display_data[col] = display_data[col].replace({0: False, 1: True}, inplace=True)
+                    display_data[col] = display_data[col].replace({0: False, 1: True})
             
             # Rename columns using the feature name map
             display_data.rename(columns=feature_name_map, inplace=True)
@@ -332,7 +333,7 @@ if predict_button:
                     parts = without_prefix.rsplit('_', 1)
                     if len(parts) > 1:
                         orig = parts[0]
-        
+                        
                         # Map to human-readable name and include the category value
                         readable_name = feature_name_map.get(orig, orig)
                         feature_mapping[col] = f"{readable_name}: {parts[1]}"
@@ -409,6 +410,30 @@ if predict_button:
             # Display the processed input data with readable feature names and boolean conversions
             st.subheader("Input Data Summary")
             st.dataframe(display_data)
+            
+            # Create a pie chart showing origin breakdown
+            if all(col in display_data.columns for col in ['Portugal', 'European', 'Rest of the World']):
+                st.subheader("Country Origin")
+                fig_pie, ax_pie = plt.subplots(figsize=(8, 4))
+                
+                # Get the values (should be True/False)
+                origins = []
+                labels = []
+                
+                if display_data['Portugal'].iloc[0]:
+                    origins.append(1)
+                    labels.append('Portugal')
+                if display_data['European'].iloc[0]:
+                    origins.append(1)
+                    labels.append('European')
+                if display_data['Rest of the World'].iloc[0]:
+                    origins.append(1)
+                    labels.append('Rest of the World')
+                
+                if len(origins) > 0:
+                    ax_pie.pie(origins, labels=labels, autopct='%1.0f%%', startangle=90, colors=['#ff9999','#66b3ff','#99ff99'])
+                    ax_pie.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+                    st.pyplot(fig_pie)
             
             st.info("""
             The waterfall plot shows how each feature contributes to pushing the model prediction 
