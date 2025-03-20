@@ -268,7 +268,7 @@ if predict_button:
                 
         # Generate SHAP explanation
         st.subheader("Factors Influencing the Prediction")
-        
+
         with st.spinner("Generating SHAP explanation..."):
             # Define feature name mapping for better readability
             feature_name_map = {
@@ -278,9 +278,9 @@ if predict_button:
                 'total_stay_nights': 'Total Nights Stayed',
                 'market_segment': 'Market Segment',
                 'distribution_channel': 'Distribution Channel',
-                'portugal': 'Portugal',
-                'european': 'European',
-                'rest_of_the_world': 'Rest of the World',
+                'portugal': 'Country: Portugal',
+                'european': 'Country: European',
+                'rest_of_the_world': 'Country: Rest of World',
                 'deposit_type': 'Deposit Type',
                 'customer_type': 'Customer Type',
                 'is_repeated_guest': 'Is Repeated Guest',
@@ -288,7 +288,7 @@ if predict_button:
                 'room_status': 'Reservation Room Match',
                 'season': 'Season',
                 'is_family': 'Family',
-                'cancellation_risk': 'Cancellation Risk',
+                'cancellation_risk': 'Previous Cancellation History',
                 'special_request_indicator': 'Special Request Made',
                 'waiting_list_indicator': 'On Waiting List',
                 'agent': 'Agent',
@@ -298,49 +298,6 @@ if predict_button:
                 'meal': 'Meal Plan',
                 'previous_bookings_not_canceled': 'Previous Bookings Not Canceled'
             }
-            
-            # Define binary columns to convert to boolean
-            binary_columns = [
-                'is_repeated_guest', 'required_car_spaces_indicator', 'is_family',
-                'cancellation_risk', 'special_request_indicator', 'waiting_list_indicator',
-                'booking_changes_indicator', 'room_status', 'previous_bookings_not_canceled',
-                'portugal', 'european', 'rest_of_the_world'  # Add country binary columns
-            ]
-            
-            # Create a copy of the transformed data for display purposes
-            display_data = transformed_data.copy()
-            
-            # Convert binary columns to boolean for better display
-            for col in binary_columns:
-                if col in display_data.columns:
-                    display_data[col] = display_data[col].replace({0: False, 1: True})
-            
-            # Rename columns using the feature name map
-            display_data.rename(columns=feature_name_map, inplace=True)
-            
-            # Get the encoded feature names from the preprocessing pipeline
-            encoded_feature_names = preprocessing_pipeline.get_feature_names_out()
-            
-            # Build mapping from encoded feature names to original feature names
-            feature_mapping = {}
-            for col in encoded_feature_names:
-                if col.startswith('num__'):
-                    orig = col.split('__', 1)[1]
-                    feature_mapping[col] = feature_name_map.get(orig, orig)
-                elif col.startswith('cat__'):
-                    without_prefix = col.split('__', 1)[1]
-                    # Handle one-hot encoded features by extracting the original feature name
-                    parts = without_prefix.rsplit('_', 1)
-                    if len(parts) > 1:
-                        orig = parts[0]
-                        
-                        # Map to human-readable name and include the category value
-                        readable_name = feature_name_map.get(orig, orig)
-                        feature_mapping[col] = f"{readable_name}: {parts[1]}"
-                    else:
-                        feature_mapping[col] = feature_name_map.get(without_prefix, without_prefix)
-                else:
-                    feature_mapping[col] = feature_name_map.get(col, col)
             
             # Create a SHAP explainer
             explainer = shap.TreeExplainer(model)
@@ -366,53 +323,100 @@ if predict_button:
             else:
                 shap_values_to_plot = shap_values[0]
             
-            improved_feature_mapping = {}
+            # Get encoded feature names
+            encoded_feature_names = preprocessing_pipeline.get_feature_names_out()
+            
+            # Improved aggregation of SHAP values for binary/categorical features
+            feature_groups = {}
+            
             for i, feature in enumerate(encoded_feature_names):
+                # Skip features with zero or negligible impact
+                if abs(shap_values_to_plot[i]) < 1e-10:
+                    continue
+                    
+                # Extract base feature name by removing prefixes and suffixes
                 base_feature = feature
-                if feature.startswith('cat__') or feature.startswith('num__'):
+                feature_value = None
+                
+                if feature.startswith('cat__'):
+                    parts = feature.split('__', 1)[1].rsplit('_', 1)
+                    if len(parts) > 1:
+                        base_feature = parts[0]
+                        feature_value = parts[1]
+                elif feature.startswith('num__'):
                     base_feature = feature.split('__', 1)[1]
-                    if '_' in base_feature:
-                        base_feature = base_feature.rsplit('_', 1)[0]
                 
-                readable_name = feature_mapping.get(feature, feature)
+                # Get readable name for the base feature
+                readable_base = feature_name_map.get(base_feature, base_feature)
                 
-                # Handle binary features by adding Yes/No
-                if base_feature in binary_columns:
-                    # Check if this is a one-hot encoded feature
-                    if '_1' in feature or '_True' in feature:
-                        readable_name = readable_name.split(':')[0] + ': Yes'
-                    elif '_0' in feature or '_False' in feature:
-                        readable_name = readable_name.split(':')[0] + ': No'
-                    # For non-encoded binary features, check the actual value
-                    elif base_feature in transformed_data.columns:
-                        value = transformed_data[base_feature].iloc[0]
-                        readable_name = readable_name + f': {"Yes" if value else "No"}'
-                
-                # Handle country features specially to avoid duplication
-                if 'portugal' in base_feature.lower() or 'european' in base_feature.lower() or 'rest_of_the_world' in base_feature.lower():
-                    country_val = base_feature.split('_')[-1] if '_' in base_feature else transformed_data[base_feature].iloc[0]
-                    if str(country_val) == '1' or str(country_val) == 'True':
-                        readable_name = f"Country: {base_feature.split('_')[0].title()}"
+                # For binary features with one-hot encoding, create a single feature with correct attribution
+                if base_feature in ('cancellation_risk', 'is_repeated_guest', 'required_car_spaces_indicator', 
+                                'room_status', 'is_family', 'special_request_indicator', 
+                                'waiting_list_indicator', 'booking_changes_indicator'):
+                    # For binary features, we want one entry that shows the actual status
+                    actual_value = None
+                    
+                    # Determine the actual value from transformed data if available
+                    if base_feature in transformed_data.columns:
+                        actual_value = bool(transformed_data[base_feature].iloc[0])
+                    # Otherwise try to determine from the feature value in encoded name
+                    elif feature_value:
+                        if feature_value == '1' or feature_value == 'True':
+                            actual_value = True
+                        elif feature_value == '0' or feature_value == 'False':
+                            actual_value = False
+                    
+                    if actual_value is not None:
+                        display_name = f"{readable_base}: {'Yes' if actual_value else 'No'}"
+                        
+                        # If this is the positive case and the feature is present in the data
+                        if (feature_value == '1' or feature_value == 'True') == actual_value:
+                            if display_name not in feature_groups:
+                                feature_groups[display_name] = shap_values_to_plot[i]
+                            else:
+                                feature_groups[display_name] += shap_values_to_plot[i]
+                    
+                # For country features, only include the actual country
+                elif base_feature in ('portugal', 'european', 'rest_of_the_world'):
+                    value = None
+                    if base_feature in transformed_data.columns:
+                        value = bool(transformed_data[base_feature].iloc[0])
+                    elif feature_value:
+                        value = (feature_value == '1' or feature_value == 'True')
+                        
+                    if value:
+                        if readable_base not in feature_groups:
+                            feature_groups[readable_base] = shap_values_to_plot[i]
+                        else:
+                            feature_groups[readable_base] += shap_values_to_plot[i]
+                            
+                # For categorical features, append the value
+                elif feature_value:
+                    display_name = f"{readable_base}: {feature_value}"
+                    if display_name not in feature_groups:
+                        feature_groups[display_name] = shap_values_to_plot[i]
                     else:
-                        # Skip features that represent negative cases of country
-                        continue
-                
-                if readable_name in improved_feature_mapping:
-                    improved_feature_mapping[readable_name] += shap_values_to_plot[i]
+                        feature_groups[display_name] += shap_values_to_plot[i]
+                        
+                # For numerical features, use the base name
                 else:
-                    improved_feature_mapping[readable_name] = shap_values_to_plot[i]
-
-            # Use the improved mapping for plotting
+                    if readable_base not in feature_groups:
+                        feature_groups[readable_base] = shap_values_to_plot[i]
+                    else:
+                        feature_groups[readable_base] += shap_values_to_plot[i]
+            
+            # Get top features by absolute value
             sorted_features = sorted(
-                improved_feature_mapping.items(), 
+                feature_groups.items(), 
                 key=lambda x: abs(x[1]), 
                 reverse=True
-            )[:15]  # Top 15 features
+            )[:10]  # Reduced to top 10 features to make plot more compact
             
             # Create the waterfall plot with aggregated SHAP values
-            fig, ax = plt.subplots(figsize=(10, 8))
+            # Adjust figure size to be more compact
+            fig, ax = plt.subplots(figsize=(8, 6))  # Reduced size from (10, 8)
             
-            # Create a manual waterfall plot based on aggregated SHAP values
+            # Use features and values for the plot
             features = [x[0] for x in sorted_features]
             values = [x[1] for x in sorted_features]
             
@@ -421,23 +425,19 @@ if predict_button:
                 expected_value, 
                 np.array(values), 
                 feature_names=features,
-                max_display=15,
+                max_display=10,  # Reduced from 15
                 show=False
             )
             
+            # Adjust the layout to ensure plot is fully visible
+            plt.tight_layout()
+            
+            # Display the plot
             st.pyplot(fig)
             
-            # Display the processed input data with readable feature names and boolean conversions
-            st.subheader("Input Data Summary")
-            st.dataframe(display_data)
-                        
+            # Add plot explanation
             st.info("""
-            The waterfall plot shows how each feature contributes to pushing the model prediction 
-            from the base value (average prediction) to the final prediction. 
+            The waterfall plot shows the top 10 factors influencing the cancellation prediction.
             Red bars push the prediction higher (more likely to cancel), 
             while blue bars push the prediction lower (less likely to cancel).
             """)
-    
-    except Exception as e:
-        st.error(f"An error occurred during prediction: {e}")
-        st.write("Error details:", str(e))
