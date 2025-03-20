@@ -306,14 +306,9 @@ if predict_button:
             # If it's a list of arrays (for multi-class), get the array for the positive class
             # If it's a single array, use it directly
             if isinstance(shap_values, list):
-                # If two arrays are returned, select the one corresponding to the positive class
-                shap_values_to_plot = shap_values[1] if len(shap_values) == 2 else shap_values[0]
+                shap_values_to_plot = shap_values[1][0]
             else:
-                shap_values_to_plot = shap_values
-
-            # If the SHAP values have an extra dimension, select the proper one.
-            if shap_values_to_plot.ndim == 3:
-                shap_values_sample = shap_values_to_plot[:, :, 1]
+                shap_values_to_plot = shap_values[0]
                 
             # Create waterfall plot
             fig, ax = plt.subplots(figsize=(10, 8))
