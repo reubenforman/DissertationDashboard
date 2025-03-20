@@ -138,7 +138,7 @@ class BookingDataTransformer(BaseEstimator, TransformerMixin):
             return 'Unknown'
         df['season'] = df['arrival_date_month'].apply(get_season)
         df = df.drop(['arrival_date_day_of_month', 'arrival_date_month', 
-                    'arrival_date_week_number', 'arrival_date'], axis=1)
+                      'arrival_date_week_number', 'arrival_date'], axis=1)
 
         return df
 
@@ -176,9 +176,7 @@ with tab1:
             country = st.text_input("Specify Country Code (3 letters)")
         
         st.markdown("### Booking Details")
-        # Fixed ADR to increment by 1.0 instead of 0.01
         adr = st.number_input("Average Daily Rate (EUR)", min_value=0, max_value=1000, value=100, step=1)
-        # Fixed lead_time display formatting to match others
         lead_time = st.number_input("Lead Time (days)", min_value=0, max_value=365, value=30)
     
     with col2:
@@ -186,9 +184,13 @@ with tab1:
         weekend_nights = st.number_input("Stays in Weekend Nights", min_value=0, max_value=10, value=1)
         week_nights = st.number_input("Stays in Week Nights", min_value=0, max_value=30, value=3)
         meal = st.selectbox("Meal Plan", options=["BB", "FB", "HB", "SC", "Undefined"], 
-                          format_func=lambda x: {"BB": "Bed & Breakfast", "FB": "Full Board", 
-                                               "HB": "Half Board", "SC": "Self Catering", 
-                                               "Undefined": "Not Specified"}.get(x, x))
+                            format_func=lambda x: {
+                                "BB": "Bed & Breakfast",
+                                "FB": "Full Board",
+                                "HB": "Half Board",
+                                "SC": "Self Catering",
+                                "Undefined": "Not Specified"
+                            }.get(x, x))
         
         st.markdown("### Room Information")
         reserved_room_type = st.selectbox("Reserved Room Type", options=["A", "B", "C", "D", "E", "F", "G", "H"])
@@ -291,14 +293,7 @@ if predict_button:
         # Create columns for prediction result and details
         col1, col2 = st.columns([1, 2])
         
-        with col1:
-            # Format ADR as integer in the metric display
-            st.metric(
-                "Average Daily Rate", 
-                f"€{int(adr)}",
-                delta=None
-            )
-            
+        with col1:       
             st.metric(
                 "Cancellation Probability", 
                 f"{cancellation_prob:.1f}%",
@@ -377,11 +372,11 @@ if predict_button:
             feature_groups = {}
             
             for i, feature in enumerate(encoded_feature_names):
-                # Skip features with zero or negligible impact
+                # Skip features with negligible impact
                 if abs(shap_values_to_plot[i]) < 1e-10:
                     continue
                     
-                # Extract base feature name by removing prefixes and suffixes
+                # Extract base feature name by removing prefixes/suffixes
                 base_feature = feature
                 feature_value = None
                 
@@ -393,43 +388,41 @@ if predict_button:
                 elif feature.startswith('num__'):
                     base_feature = feature.split('__', 1)[1]
                 
-                # Get readable name for the base feature
+                # Get readable name
                 readable_base = feature_name_map.get(base_feature, base_feature)
                 
-                # For binary features with one-hot encoding, create a single feature with correct attribution
-                if base_feature in ('cancellation_risk', 'is_repeated_guest', 'required_car_spaces_indicator', 
-                                'room_status', 'is_family', 'special_request_indicator', 
-                                'waiting_list_indicator', 'booking_changes_indicator'):
-                    # For binary features, we want one entry that shows the actual status
+                # Handle binary features
+                if base_feature in (
+                    'cancellation_risk', 'is_repeated_guest', 'required_car_spaces_indicator', 
+                    'room_status', 'is_family', 'special_request_indicator', 
+                    'waiting_list_indicator', 'booking_changes_indicator'
+                ):
                     actual_value = None
-                    
                     # Determine the actual value from transformed data if available
                     if base_feature in transformed_data.columns:
                         actual_value = bool(transformed_data[base_feature].iloc[0])
-                    # Otherwise try to determine from the feature value in encoded name
                     elif feature_value:
-                        if feature_value == '1' or feature_value == 'True':
+                        if feature_value in ['1', 'True']:
                             actual_value = True
-                        elif feature_value == '0' or feature_value == 'False':
+                        elif feature_value in ['0', 'False']:
                             actual_value = False
                     
                     if actual_value is not None:
                         display_name = f"{readable_base}: {'Yes' if actual_value else 'No'}"
-                        
-                        # If this is the positive case and the feature is present in the data
-                        if (feature_value == '1' or feature_value == 'True') == actual_value:
+                        # If this feature's one-hot matches the actual value
+                        if (feature_value in ['1','True']) == actual_value:
                             if display_name not in feature_groups:
                                 feature_groups[display_name] = shap_values_to_plot[i]
                             else:
                                 feature_groups[display_name] += shap_values_to_plot[i]
-                    
-                # For country features, only include the actual country
+                
+                # Handle country features
                 elif base_feature in ('portugal', 'european', 'rest_of_the_world'):
                     value = None
                     if base_feature in transformed_data.columns:
                         value = bool(transformed_data[base_feature].iloc[0])
                     elif feature_value:
-                        value = (feature_value == '1' or feature_value == 'True')
+                        value = (feature_value in ['1','True'])
                         
                     if value:
                         if readable_base not in feature_groups:
@@ -437,40 +430,44 @@ if predict_button:
                         else:
                             feature_groups[readable_base] += shap_values_to_plot[i]
                             
-                # For categorical features, append the value
+                # Handle categorical features
                 elif feature_value:
                     display_name = f"{readable_base}: {feature_value}"
                     if display_name not in feature_groups:
                         feature_groups[display_name] = shap_values_to_plot[i]
                     else:
                         feature_groups[display_name] += shap_values_to_plot[i]
-                        
-                # For numerical features, use the base name
+                
+                # Handle numeric features (e.g., Lead Time)
                 else:
-                    if readable_base not in feature_groups:
-                        feature_groups[readable_base] = shap_values_to_plot[i]
+                    if base_feature in transformed_data.columns:
+                        numeric_val = transformed_data[base_feature].iloc[0]
+                        # Optionally round numeric_val
+                        display_name = f"{readable_base}: {numeric_val}"
                     else:
-                        feature_groups[readable_base] += shap_values_to_plot[i]
+                        display_name = readable_base
+                    
+                    if display_name not in feature_groups:
+                        feature_groups[display_name] = shap_values_to_plot[i]
+                    else:
+                        feature_groups[display_name] += shap_values_to_plot[i]
  
             # Get top features by absolute value
             sorted_features = sorted(
                 feature_groups.items(), 
                 key=lambda x: abs(x[1]), 
                 reverse=True
-            )[:10]  # Top 10 features to make plot more compact
+            )[:10]  # Top 10 features
             
-            # Create the waterfall plot with aggregated SHAP values
-            # Adjust figure size to be more compact
-            fig, ax = plt.subplots(figsize=(10, 6))
-            
-            # Set a more attractive style
+            # Create the waterfall plot
+            fig, ax = plt.subplots(figsize=(8, 5))  # Reduced figure size
             plt.style.use('seaborn-v0_8-whitegrid')
             
-            # Use features and values for the plot
+            # Prepare features and values for the plot
             features = [x[0] for x in sorted_features]
             values = [x[1] for x in sorted_features]
             
-            # Create SHAP waterfall plot with better feature names
+            # SHAP waterfall plot
             shap.plots._waterfall.waterfall_legacy(
                 expected_value, 
                 np.array(values), 
@@ -483,7 +480,6 @@ if predict_button:
             plt.title('Top Factors Affecting Cancellation Probability', fontsize=14)
             plt.tight_layout()
             
-            # Display the plot
             st.pyplot(fig)
             
             # Add informative explanation box
@@ -500,10 +496,8 @@ if predict_button:
             
             # Display the most important factors as a table
             st.subheader("Key Factors Summary")
-            
-            # Prepare data for the table
             factor_impact = []
-            for feature, value in sorted_features[:5]:  # Get top 5 for the table
+            for feature, value in sorted_features[:5]:  # Top 5 in the table
                 impact = "Increases" if value > 0 else "Decreases"
                 factor_impact.append({
                     "Factor": feature,
@@ -511,11 +505,8 @@ if predict_button:
                     "Strength": abs(value)
                 })
             
-            # Create a DataFrame for the table
             factor_df = pd.DataFrame(factor_impact)
             factor_df["Strength"] = factor_df["Strength"].round(3)
-            
-            # Show the table
             st.table(factor_df)
 
     except Exception as e:

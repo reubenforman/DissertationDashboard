@@ -10,8 +10,37 @@ from sklearn.base import BaseEstimator, TransformerMixin
 st.set_page_config(
     page_title="Hotel Cancellation Predictor",
     page_icon="🏨",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
+
+# Custom CSS to improve appearance
+st.markdown("""
+<style>
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    h1, h2, h3 {
+        margin-bottom: 1rem;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2rem;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 3rem;
+    }
+    .stMetric {
+        background-color: #f7f7f7;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .css-1v0mbdj.e115fcil1 {
+        margin-top: 1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Title and description
 st.title("Hotel Cancellation Prediction Dashboard")
@@ -127,73 +156,81 @@ except Exception as e:
     st.error(f"Error loading model: {e}")
     st.stop()
 
-# Create input form
-st.subheader("Enter Booking Information")
+# Create tabs for better organization
+tab1, tab2 = st.tabs(["📝 Booking Information", "📊 Advanced Options"])
 
-# Create two columns for form layout
-col1, col2 = st.columns(2)
+with tab1:
+    # Create a more visually appealing input form
+    st.subheader("Enter Booking Information")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### Guest Information")
+        adults = st.number_input("Number of Adults", min_value=1, max_value=10, value=2)
+        children = st.number_input("Number of Children", min_value=0, max_value=10, value=0)
+        babies = st.number_input("Number of Babies", min_value=0, max_value=10, value=0)
+        is_repeated_guest = st.selectbox("Is Repeated Guest", options=[0, 1], format_func=lambda x: "Yes" if x == 1 else "No")
+        country = st.selectbox("Country", options=["PRT", "GBR", "FRA", "ESP", "DEU", "ITA", "USA", "Other"])
+        if country == "Other":
+            country = st.text_input("Specify Country Code (3 letters)")
+        
+        st.markdown("### Booking Details")
+        # Fixed ADR to increment by 1.0 instead of 0.01
+        adr = st.number_input("Average Daily Rate (EUR)", min_value=0, max_value=1000, value=100, step=1)
+        # Fixed lead_time display formatting to match others
+        lead_time = st.number_input("Lead Time (days)", min_value=0, max_value=365, value=30)
+    
+    with col2:
+        st.markdown("### Stay Information")
+        weekend_nights = st.number_input("Stays in Weekend Nights", min_value=0, max_value=10, value=1)
+        week_nights = st.number_input("Stays in Week Nights", min_value=0, max_value=30, value=3)
+        meal = st.selectbox("Meal Plan", options=["BB", "FB", "HB", "SC", "Undefined"], 
+                          format_func=lambda x: {"BB": "Bed & Breakfast", "FB": "Full Board", 
+                                               "HB": "Half Board", "SC": "Self Catering", 
+                                               "Undefined": "Not Specified"}.get(x, x))
+        
+        st.markdown("### Room Information")
+        reserved_room_type = st.selectbox("Reserved Room Type", options=["A", "B", "C", "D", "E", "F", "G", "H"])
+        assigned_room_type = st.selectbox("Assigned Room Type", options=["A", "B", "C", "D", "E", "F", "G", "H"])
+        
+        st.markdown("### Arrival Date")
+        arrival_date_year = st.selectbox("Arrival Year", options=[2015, 2016, 2017])
+        arrival_date_month = st.selectbox("Arrival Month", options=[
+            "January", "February", "March", "April", "May", "June", 
+            "July", "August", "September", "October", "November", "December"
+        ])
+        arrival_date_day = st.number_input("Arrival Day", min_value=1, max_value=31, value=15)
 
-with col1:
-    # Numerical inputs
-    adults = st.number_input("Number of Adults", min_value=1, max_value=10, value=2)
-    adr = st.number_input("Average Daily Rate (EUR)", min_value=0.0, max_value=1000.0, value=100.0)
-    lead_time = st.number_input("Lead Time (days)", min_value=0, max_value=365, value=30)
+with tab2:
+    st.subheader("Advanced Booking Options")
     
-    # Stay details
-    weekend_nights = st.number_input("Stays in Weekend Nights", min_value=0, max_value=10, value=1)
-    week_nights = st.number_input("Stays in Week Nights", min_value=0, max_value=30, value=3)
+    col1, col2 = st.columns(2)
     
-    # More booking details
-    is_repeated_guest = st.selectbox("Is Repeated Guest", options=[0, 1], format_func=lambda x: "Yes" if x == 1 else "No")
-    previous_bookings_not_canceled = st.number_input("Previous Bookings Not Canceled", min_value=0, max_value=50, value=0)
+    with col1:
+        st.markdown("### Booking Details")
+        market_segment = st.selectbox("Market Segment", options=["Direct", "Corporate", "Online TA", "Offline TA/TO", "Complementary", "Groups", "Aviation"])
+        distribution_channel = st.selectbox("Distribution Channel", options=["Direct", "Corporate", "TA/TO", "GDS", "Undefined"])
+        deposit_type = st.selectbox("Deposit Type", options=["No Deposit", "Non Refund", "Refundable"])
+        customer_type = st.selectbox("Customer Type", options=["Transient", "Transient-Party", "Contract", "Group"])
+        agent = st.number_input("Agent ID", min_value=0, max_value=535, value=0)
+        company = st.number_input("Company ID", min_value=0, max_value=500, value=0)
     
-    # Room details
-    reserved_room_type = st.selectbox("Reserved Room Type", options=["A", "B", "C", "D", "E", "F", "G", "H"])
-    assigned_room_type = st.selectbox("Assigned Room Type", options=["A", "B", "C", "D", "E", "F", "G", "H"])
+    with col2:
+        st.markdown("### Booking History")
+        previous_cancellations = st.number_input("Previous Cancellations", min_value=0, max_value=50, value=0)
+        previous_bookings_not_canceled = st.number_input("Previous Bookings Not Canceled", min_value=0, max_value=50, value=0)
+        booking_changes = st.number_input("Booking Changes", min_value=0, max_value=20, value=0)
+        days_in_waiting_list = st.number_input("Days in Waiting List", min_value=0, max_value=365, value=0)
+        required_car_parking_spaces = st.number_input("Required Car Parking Spaces", min_value=0, max_value=8, value=0)
+        total_of_special_requests = st.number_input("Total of Special Requests", min_value=0, max_value=5, value=0)
+        arrival_date_week_number = st.number_input("Arrival Date Week Number", min_value=1, max_value=53, value=25)
 
-with col2:
-    # Categorical inputs
-    market_segment = st.selectbox("Market Segment", options=["Direct", "Corporate", "Online TA", "Offline TA/TO", "Complementary", "Groups", "Aviation"])
-    distribution_channel = st.selectbox("Distribution Channel", options=["Direct", "Corporate", "TA/TO", "GDS", "Undefined"])
-    country = st.selectbox("Country", options=["PRT", "GBR", "FRA", "ESP", "DEU", "ITA", "USA", "Other"])
-    if country == "Other":
-        country = st.text_input("Specify Country Code (3 letters)")
-    
-    # More booking details
-    deposit_type = st.selectbox("Deposit Type", options=["No Deposit", "Non Refund", "Refundable"])
-    customer_type = st.selectbox("Customer Type", options=["Transient", "Transient-Party", "Contract", "Group"])
-    meal = st.selectbox("Meal", options=["BB", "FB", "HB", "SC", "Undefined"])
-    
-    # Additional details
-    children = st.number_input("Number of Children", min_value=0, max_value=10, value=0)
-    babies = st.number_input("Number of Babies", min_value=0, max_value=10, value=0)
-    
-    # Date inputs
-    arrival_date_year = st.selectbox("Arrival Year", options=[2015, 2016, 2017])
-    arrival_date_month = st.selectbox("Arrival Month", options=[
-        "January", "February", "March", "April", "May", "June", 
-        "July", "August", "September", "October", "November", "December"
-    ])
-    arrival_date_day = st.number_input("Arrival Day", min_value=1, max_value=31, value=15)
+# Add a divider for visual separation
+st.divider()
 
-# Additional inputs
-col1, col2, col3 = st.columns(3)
-with col1:
-    agent = st.number_input("Agent ID", min_value=0, max_value=535, value=0)
-    company = st.number_input("Company ID", min_value=0, max_value=500, value=0)
-    
-with col2:
-    previous_cancellations = st.number_input("Previous Cancellations", min_value=0, max_value=50, value=0)
-    booking_changes = st.number_input("Booking Changes", min_value=0, max_value=20, value=0)
-    days_in_waiting_list = st.number_input("Days in Waiting List", min_value=0, max_value=365, value=0)
-
-with col3:    
-    required_car_parking_spaces = st.number_input("Required Car Parking Spaces", min_value=0, max_value=8, value=0)
-    total_of_special_requests = st.number_input("Total of Special Requests", min_value=0, max_value=5, value=0)
-    arrival_date_week_number = st.number_input("Arrival Date Week Number", min_value=1, max_value=53, value=25)
-
-# Create a button to trigger prediction
-predict_button = st.button("Predict Cancellation Probability", type="primary")
+# Create a more prominent predict button
+predict_button = st.button("Predict Cancellation Probability", type="primary", use_container_width=True)
 
 if predict_button:
     # Create a single row dataframe with the input values
@@ -231,45 +268,48 @@ if predict_button:
     
     # Apply the transformation
     try:
-        # Transform the input data
-        transformer = BookingDataTransformer()
-        transformed_data = transformer.transform(input_data)
+        # Create a spinner for better UX during processing
+        with st.spinner("Processing your booking information..."):
+            # Transform the input data
+            transformer = BookingDataTransformer()
+            transformed_data = transformer.transform(input_data)
+            
+            # Drop the hotel column as it's constant for Resort Hotel
+            if 'hotel' in transformed_data.columns:
+                transformed_data = transformed_data.drop('hotel', axis=1)
+            
+            # Apply preprocessing
+            processed_input = preprocessing_pipeline.transform(transformed_data)
+            
+            # Make prediction
+            probabilities = model.predict_proba(processed_input)[0]
+            cancellation_prob = probabilities[1] * 100
         
-        # Drop the hotel column as it's constant for Resort Hotel
-        if 'hotel' in transformed_data.columns:
-            transformed_data = transformed_data.drop('hotel', axis=1)
-        
-        # Apply preprocessing
-        processed_input = preprocessing_pipeline.transform(transformed_data)
-        
-        # Make prediction
-        probabilities = model.predict_proba(processed_input)[0]
-        cancellation_prob = probabilities[1] * 100
-        
-        # Show prediction
+        # Show prediction in a more visually appealing way
         st.subheader("Prediction Result")
         
-        col1, col2 = st.columns(2)
+        # Create columns for prediction result and details
+        col1, col2 = st.columns([1, 2])
         
-        with col1:
+        with col1:       
             st.metric(
                 "Cancellation Probability", 
-                f"{cancellation_prob:.2f}%",
-                delta=f"{cancellation_prob - 50:.2f}%" if cancellation_prob != 50 else None,
+                f"{cancellation_prob:.1f}%",
+                delta=f"{cancellation_prob - 50:.1f}%" if cancellation_prob != 50 else None,
                 delta_color="inverse"
             )
             
             if cancellation_prob > 70:
-                st.error("High risk of cancellation!")
+                st.error("❗ High risk of cancellation!")
             elif cancellation_prob > 40:
-                st.warning("Moderate risk of cancellation")
+                st.warning("⚠️ Moderate risk of cancellation")
             else:
-                st.success("Low risk of cancellation")
+                st.success("✅ Low risk of cancellation")
                 
         # Generate SHAP explanation
         st.subheader("Factors Influencing the Prediction")
 
-        with st.spinner("Generating SHAP explanation..."):
+        with st.spinner("Generating explanation..."):
             # Define feature name mapping for better readability
             feature_name_map = {
                 'adults': 'Adults',
@@ -410,11 +450,14 @@ if predict_button:
                 feature_groups.items(), 
                 key=lambda x: abs(x[1]), 
                 reverse=True
-            )[:10]  # Reduced to top 10 features to make plot more compact
+            )[:10]  # Top 10 features to make plot more compact
             
             # Create the waterfall plot with aggregated SHAP values
             # Adjust figure size to be more compact
-            fig, ax = plt.subplots(figsize=(8, 6))  # Reduced size from (10, 8)
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Set a more attractive style
+            plt.style.use('seaborn-v0_8-whitegrid')
             
             # Use features and values for the plot
             features = [x[0] for x in sorted_features]
@@ -425,22 +468,48 @@ if predict_button:
                 expected_value, 
                 np.array(values), 
                 feature_names=features,
-                max_display=10,  # Reduced from 15
+                max_display=10,
                 show=False
             )
             
-            # Adjust the layout to ensure plot is fully visible
+            # Improve plot appearance
+            plt.title('Top Factors Affecting Cancellation Probability', fontsize=14)
             plt.tight_layout()
             
             # Display the plot
             st.pyplot(fig)
             
-            # Add plot explanation
-            st.info("""
-            The waterfall plot shows the top 10 factors influencing the cancellation prediction.
-            Red bars push the prediction higher (more likely to cancel), 
-            while blue bars push the prediction lower (less likely to cancel).
-            """)
+            # Add informative explanation box
+            with st.expander("How to Interpret This Chart", expanded=True):
+                st.markdown("""
+                ### Understanding the Prediction Factors
+                
+                - **Red bars** indicate factors that **increase** the likelihood of cancellation
+                - **Blue bars** indicate factors that **decrease** the likelihood of cancellation
+                - The **size of each bar** shows how much influence that factor has on the prediction
+                - The **starting value** (E[f(x)]) is the average prediction for all bookings
+                - The **final value** is the predicted cancellation probability for this specific booking
+                """)
+            
+            # Display the most important factors as a table
+            st.subheader("Key Factors Summary")
+            
+            # Prepare data for the table
+            factor_impact = []
+            for feature, value in sorted_features[:5]:  # Get top 5 for the table
+                impact = "Increases" if value > 0 else "Decreases"
+                factor_impact.append({
+                    "Factor": feature,
+                    "Impact": impact,
+                    "Strength": abs(value)
+                })
+            
+            # Create a DataFrame for the table
+            factor_df = pd.DataFrame(factor_impact)
+            factor_df["Strength"] = factor_df["Strength"].round(3)
+            
+            # Show the table
+            st.table(factor_df)
 
     except Exception as e:
         st.error(f"An error occurred during prediction: {e}")
