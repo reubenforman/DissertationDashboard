@@ -399,12 +399,22 @@ if predict_button:
                         feature_groups[display_name] += shap_values_to_plot[i]
                         
                 # For numerical features, use the base name
+                # else:
+                #     if readable_base not in feature_groups:
+                #         feature_groups[readable_base] = shap_values_to_plot[i]
+                #     else:
+                #         feature_groups[readable_base] += shap_values_to_plot[i]
                 else:
-                    if readable_base not in feature_groups:
-                        feature_groups[readable_base] = shap_values_to_plot[i]
+                    if base_feature in transformed_data.columns:
+                        numeric_value = transformed_data[base_feature].iloc[0]
+                        display_name = f"{readable_base}: {numeric_value}"
                     else:
-                        feature_groups[readable_base] += shap_values_to_plot[i]
-            
+                        display_name = readable_base
+
+                    if display_name not in feature_groups:
+                        feature_groups[display_name] = shap_values_to_plot[i]
+                    else:
+                        feature_groups[display_name] += shap_values_to_plot[i]
             # Get top features by absolute value
             sorted_features = sorted(
                 feature_groups.items(), 
