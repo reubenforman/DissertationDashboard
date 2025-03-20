@@ -366,8 +366,7 @@ if predict_button:
             else:
                 shap_values_to_plot = shap_values[0]
             
-            # Create a mapping from encoded feature names to SHAP values
-            shap_mapping = {}
+            improved_feature_mapping = {}
             for i, feature in enumerate(encoded_feature_names):
                 base_feature = feature
                 if feature.startswith('cat__') or feature.startswith('num__'):
@@ -377,14 +376,35 @@ if predict_button:
                 
                 readable_name = feature_mapping.get(feature, feature)
                 
-                if readable_name in shap_mapping:
-                    shap_mapping[readable_name] += shap_values_to_plot[i]
+                # Handle binary features by adding Yes/No
+                if base_feature in binary_columns:
+                    # Check if this is a one-hot encoded feature
+                    if '_1' in feature or '_True' in feature:
+                        readable_name = readable_name.split(':')[0] + ': Yes'
+                    elif '_0' in feature or '_False' in feature:
+                        readable_name = readable_name.split(':')[0] + ': No'
+                    # For non-encoded binary features, check the actual value
+                    elif base_feature in transformed_data.columns:
+                        value = transformed_data[base_feature].iloc[0]
+                        readable_name = readable_name + f': {"Yes" if value else "No"}'
+                
+                # Handle country features specially to avoid duplication
+                if 'portugal' in base_feature.lower() or 'european' in base_feature.lower() or 'rest_of_the_world' in base_feature.lower():
+                    country_val = base_feature.split('_')[-1] if '_' in base_feature else transformed_data[base_feature].iloc[0]
+                    if str(country_val) == '1' or str(country_val) == 'True':
+                        readable_name = f"Country: {base_feature.split('_')[0].title()}"
+                    else:
+                        # Skip features that represent negative cases of country
+                        continue
+                
+                if readable_name in improved_feature_mapping:
+                    improved_feature_mapping[readable_name] += shap_values_to_plot[i]
                 else:
-                    shap_mapping[readable_name] = shap_values_to_plot[i]
-            
-            # Sort features by absolute SHAP value
+                    improved_feature_mapping[readable_name] = shap_values_to_plot[i]
+
+            # Use the improved mapping for plotting
             sorted_features = sorted(
-                shap_mapping.items(), 
+                improved_feature_mapping.items(), 
                 key=lambda x: abs(x[1]), 
                 reverse=True
             )[:15]  # Top 15 features
@@ -410,31 +430,7 @@ if predict_button:
             # Display the processed input data with readable feature names and boolean conversions
             st.subheader("Input Data Summary")
             st.dataframe(display_data)
-            
-            # Create a pie chart showing origin breakdown
-            if all(col in display_data.columns for col in ['Portugal', 'European', 'Rest of the World']):
-                st.subheader("Country Origin")
-                fig_pie, ax_pie = plt.subplots(figsize=(8, 4))
-                
-                # Get the values (should be True/False)
-                origins = []
-                labels = []
-                
-                if display_data['Portugal'].iloc[0]:
-                    origins.append(1)
-                    labels.append('Portugal')
-                if display_data['European'].iloc[0]:
-                    origins.append(1)
-                    labels.append('European')
-                if display_data['Rest of the World'].iloc[0]:
-                    origins.append(1)
-                    labels.append('Rest of the World')
-                
-                if len(origins) > 0:
-                    ax_pie.pie(origins, labels=labels, autopct='%1.0f%%', startangle=90, colors=['#ff9999','#66b3ff','#99ff99'])
-                    ax_pie.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
-                    st.pyplot(fig_pie)
-            
+                        
             st.info("""
             The waterfall plot shows how each feature contributes to pushing the model prediction 
             from the base value (average prediction) to the final prediction. 
