@@ -476,13 +476,13 @@ if predict_button:
                 show=False
             )
             # Explicitly set the figure size
-            fig.set_size_inches(6, 4)
+            fig.set_size_inches(8, 6)
 
             # Turn off the grid for all axes in the figure
             for ax in fig.axes:
                 ax.grid(False) 
             # Improve plot appearance
-            plt.title('Top Factors Affecting Cancellation Probability', fontsize=14)
+            plt.title('Top Factors Affecting Cancellation Probability', fontsize=8)
             plt.tight_layout()
             
             st.pyplot(fig)
