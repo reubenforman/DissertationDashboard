@@ -283,18 +283,53 @@ if predict_button:
         with st.spinner("Generating SHAP explanation..."):
             # Create a SHAP explainer
             explainer = shap.TreeExplainer(model)
-            shap_values = explainer.shap_values(processed_input)
             
-            # Create SHAP waterfall plot
+            # Fix: Get shap values for the processed input
+            # The shape of processed_input might be different from what shap.TreeExplainer expects
+            # Ensure it's a 2D array
+            if len(processed_input.shape) == 1:
+                processed_input_2d = processed_input.reshape(1, -1)
+            else:
+                processed_input_2d = processed_input
+                
+            shap_values = explainer.shap_values(processed_input_2d)
+            
+            # Fix: Check the shape of explainer.expected_value
+            # If it's an array, get the element for the positive class (index 1)
+            # If it's a scalar, use it directly
+            if hasattr(explainer.expected_value, "__len__"):
+                expected_value = explainer.expected_value[1]
+            else:
+                expected_value = explainer.expected_value
+                
+            # Fix: Check the shape of shap_values
+            # If it's a list of arrays (for multi-class), get the array for the positive class
+            # If it's a single array, use it directly
+            if isinstance(shap_values, list):
+                # If two arrays are returned, select the one corresponding to the positive class
+                shap_values_to_plot = shap_values[1] if len(shap_values) == 2 else shap_values[0]
+            else:
+                shap_values_to_plot = shap_values
+
+            # If the SHAP values have an extra dimension, select the proper one.
+            if shap_values_to_plot.ndim == 3:
+                shap_values_sample = shap_values_to_plot[:, :, 1]
+                
+            # Create waterfall plot
             fig, ax = plt.subplots(figsize=(10, 8))
+            
+            # Get feature names
+            feature_names = preprocessing_pipeline.get_feature_names_out()
+            
+            # Create SHAP waterfall plot with proper parameters
             shap.plots._waterfall.waterfall_legacy(
-                explainer.expected_value[1], 
-                shap_values[1][0], 
-                processed_input[0],
-                feature_names=preprocessing_pipeline.get_feature_names_out(),
-                show=False,
-                max_display=15
+                expected_value, 
+                shap_values_to_plot, 
+                feature_names=feature_names,
+                max_display=15,
+                show=False
             )
+            
             st.pyplot(fig)
             
             st.info("""
