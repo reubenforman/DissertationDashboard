@@ -59,20 +59,9 @@ class BookingDataTransformer(BaseEstimator, TransformerMixin):
             'EST', 'LTU', 'BGR', 'UKR', 'SVK', 'ISL', 'SVN', 'LVA', 'CYP', 'MNE', 'AND', 'MLT', 
             'GIB', 'BIH', 'ALB', 'MKD', 'LIE', 'SMR', 'FRO', 'MCO'
         ]
-        
-        # Define the conditions.
-        conditions = [
-            df['country'] == 'PRT',                 # Condition for Portugal.
-            df['country'].isin(european_countries)   # Condition for other European countries.
-        ]
-        
-        # Define the corresponding choices for each condition.
-        choices = ['Portugal', 'European']
-        
-        # Create the new column, with 'Rest of the world' as the default.
-        df['country_of_origin'] = np.select(conditions, choices, default='Rest of the world')
-        
-        # Optionally, drop the original 'country' column.
+        df['portugal'] = (df['country'] == 'PRT').astype(int)
+        df['european'] = df['country'].isin(european_countries).astype(int)
+        df['rest_of_the_world'] = ((~df['country'].isin(european_countries)) & (df['country'] != 'PRT')).astype(int)
         df = df.drop('country', axis=1)
 
         # --- Process room types ---
