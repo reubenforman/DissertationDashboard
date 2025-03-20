@@ -404,7 +404,7 @@ if predict_button:
                         feature_groups[readable_base] = shap_values_to_plot[i]
                     else:
                         feature_groups[readable_base] += shap_values_to_plot[i]
-            
+ 
             # Get top features by absolute value
             sorted_features = sorted(
                 feature_groups.items(), 
@@ -441,3 +441,7 @@ if predict_button:
             Red bars push the prediction higher (more likely to cancel), 
             while blue bars push the prediction lower (less likely to cancel).
             """)
+
+    except Exception as e:
+        st.error(f"An error occurred during prediction: {e}")
+        st.write("Error details:", str(e))
