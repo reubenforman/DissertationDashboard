@@ -54,20 +54,9 @@ class BookingDataTransformer(BaseEstimator, TransformerMixin):
             'EST', 'LTU', 'BGR', 'UKR', 'SVK', 'ISL', 'SVN', 'LVA', 'CYP', 'MNE', 'AND', 'MLT', 
             'GIB', 'BIH', 'ALB', 'MKD', 'LIE', 'SMR', 'FRO', 'MCO'
         ]
-        
-        # Define the conditions.
-        conditions = [
-            df['country'] == 'PRT',                 # Condition for Portugal.
-            df['country'].isin(european_countries)   # Condition for other European countries.
-        ]
-        
-        # Define the corresponding choices for each condition.
-        choices = ['Portugal', 'European']
-        
-        # Create the new column, with 'Rest of the world' as the default.
-        df['country_of_origin'] = np.select(conditions, choices, default='Rest of the world')
-        
-        # Optionally, drop the original 'country' column.
+        df['portugal'] = (df['country'] == 'PRT').astype(int)
+        df['european'] = df['country'].isin(european_countries).astype(int)
+        df['rest_of_the_world'] = ((~df['country'].isin(european_countries)) & (df['country'] != 'PRT')).astype(int)
         df = df.drop('country', axis=1)
 
         # --- Process room types ---
@@ -131,7 +120,7 @@ def train_and_save_model():
     # Define features
     numerical = ['adults', 'adr', 'lead_time', 'total_stay_nights']
     categorical = [
-        'market_segment', 'distribution_channel', 'country_of_origin',
+        'market_segment', 'distribution_channel', 'portugal', 'european', 'rest_of_the_world',
         'deposit_type', 'customer_type', 'previous_bookings_not_canceled',
         'is_repeated_guest', 'required_car_spaces_indicator',
         'room_status', 'season', 'is_family', 'cancellation_risk',
